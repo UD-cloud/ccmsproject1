@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Admin Dashboard</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+
+<h2>Admin Dashboard</h2>
+
+<table>
+    <tr>
+        <th>Title</th>
+        <th>Category</th>
+        <th>Severity</th>
+        <th>Priority</th>
+        <th>Status</th>
+    </tr>
+
+    {% for c in complaints %}
+    <tr>
+        <td>{{ c.title }}</td>
+        <td>{{ c.category }}</td>
+        <td>{{ c.severity }}</td>
+        <td>{{ c.priority }}</td>
+        <td>{{ c.status }}</td>
+    </tr>
+    {% endfor %}
+</table>
+
+</body>
+</html>
