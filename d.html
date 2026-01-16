@@ -1,32 +1,50 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+    <meta charset="UTF-8">
     <title>Admin Dashboard</title>
-    <link rel="stylesheet" href="/static/style.css">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="style.css">
 </head>
-<body>
+<body class="bg-gray-50 p-6">
 
-<h2>Admin Dashboard</h2>
+    <div class="max-w-6xl mx-auto">
+        <header class="flex justify-between items-center mb-8">
+            <h2 class="text-3xl font-extrabold text-slate-800">Admin Dashboard</h2>
+            <div class="bg-indigo-100 text-indigo-700 px-4 py-2 rounded-full font-bold text-sm">
+                Smart Priority System Active
+            </div>
+        </header>
 
-<table>
-    <tr>
-        <th>Title</th>
-        <th>Category</th>
-        <th>Severity</th>
-        <th>Priority</th>
-        <th>Status</th>
-    </tr>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10">
+            <div class="bg-white p-6 rounded-xl shadow-sm">
+                <canvas id="priorityChart" height="200"></canvas>
+            </div>
+            <div class="bg-white p-6 rounded-xl shadow-sm">
+                <canvas id="categoryChart" height="200"></canvas>
+            </div>
+        </div>
 
-    {% for c in complaints %}
-    <tr>
-        <td>{{ c.title }}</td>
-        <td>{{ c.category }}</td>
-        <td>{{ c.severity }}</td>
-        <td>{{ c.priority }}</td>
-        <td>{{ c.status }}</td>
-    </tr>
-    {% endfor %}
-</table>
+        <div class="bg-white rounded-xl shadow-lg overflow-hidden border border-gray-200">
+            <table class="w-full text-left border-collapse">
+                <thead>
+                    <tr class="bg-slate-800 text-white text-sm uppercase tracking-wider">
+                        <th class="p-4">Title</th>
+                        <th class="p-4">Category</th>
+                        <th class="p-4">AI Priority</th>
+                        <th class="p-4">Student</th>
+                        <th class="p-4">Action</th>
+                    </tr>
+                </thead>
+                <tbody id="adminContainer" class="divide-y divide-gray-200">
+                    </tbody>
+            </table>
+        </div>
+    </div>
 
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+    <script src="app.js"></script>
 </body>
 </html>
