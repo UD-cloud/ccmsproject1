@@ -1,90 +1,73 @@
-from flask import Flask, render_template, request, jsonify
-import sqlite3
-from datetime import datetime
+from flask import Flask, request, jsonify
+from flask_cors import CORS
+import firebase_admin
+from firebase_admin import credentials, firestore
+from textblob import TextBlob
 
 app = Flask(__name__)
+# CORS allows your Frontend (browser) to talk to this Python Backend
+CORS(app)
 
-# ---------------- DATABASE ----------------
+# 1. Initialize Firebase Admin
+# IMPORTANT: Place your serviceAccountKey.json in the same folder as this file!
+cred = credentials.Certificate("serviceAccountKey.json")
+firebase_admin.initialize_app(cred)
+db = firestore.client()
 
-def get_db_connection():
-    conn = sqlite3.connect("complaints.db")
-    conn.row_factory = sqlite3.Row
-    return conn
+def analyze_priority(title, desc):
+    """
+    AI Logic: Scans keywords and sentiment to decide priority.
+    """
+    text = (title + " " + desc).lower()
+    
+    # Keyword Lists
+    critical_keywords = ['fire', 'shock', 'emergency', 'medical', 'theft', 'leak', 'broken', 'accident']
+    medium_keywords = ['wifi', 'internet', 'cleaning', 'fan', 'light', 'water', 'slow']
 
-def init_db():
-    conn = get_db_connection()
-    conn.execute("""
-        CREATE TABLE IF NOT EXISTS complaints (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            title TEXT,
-            description TEXT,
-            category TEXT,
-            severity TEXT,
-            created_at TEXT,
-            status TEXT
-        )
-    """)
-    conn.commit()
-    conn.close()
+    # Logic 1: Sentiment Analysis (Detecting anger/frustration)
+    blob = TextBlob(text)
+    sentiment = blob.sentiment.polarity 
 
-init_db()
+    # Logic 2: Decision Matrix
+    if any(word in text for word in critical_keywords) or sentiment < -0.6:
+        return "High"
+    elif any(word in text for word in medium_keywords) or sentiment < -0.2:
+        return "Medium"
+    else:
+        return "Low"
 
-# ---------------- PRIORITY LOGIC ----------------
+@app.route('/submit', methods=['POST'])
+def submit():
+    try:
+        data = request.json
+        
+        # Run the AI analysis
+        smart_priority = analyze_priority(data['title'], data['desc'])
+        
+        # Prepare the document for Firestore
+        complaint_doc = {
+            "title": data['title'],
+            "desc": data['desc'],
+            "category": data['category'],
+            "priority": smart_priority, 
+            "status": "Pending",
+            "studentName": data['studentName'],
+            "studentId": data['studentId'],
+            "createdAt": firestore.SERVER_TIMESTAMP
+        }
+        
+        # Save to Firebase
+        db.collection("complaints").add(complaint_doc)
+        
+        return jsonify({
+            "status": "success", 
+            "priority": smart_priority,
+            "message": "AI analyzed and stored complaint"
+        })
+    except Exception as e:
+        print(f"Error: {e}")
+        return jsonify({"status": "error", "message": str(e)}), 500
 
-def calculate_priority(severity, created_at):
-    severity_score = {
-        "Low": 1,
-        "Medium": 2,
-        "High": 3
-    }.get(severity, 1)
-
-    created_time = datetime.strptime(created_at, "%Y-%m-%d %H:%M:%S")
-    days_passed = (datetime.now() - created_time).days
-
-    return severity_score + days_passed
-
-# ---------------- ROUTES ----------------
-
-@app.route("/")
-def index():
-    return render_template("index.html")
-
-@app.route("/admin")
-def admin():
-    conn = get_db_connection()
-    complaints = conn.execute("SELECT * FROM complaints").fetchall()
-    conn.close()
-
-    result = []
-    for c in complaints:
-        priority = calculate_priority(c["severity"], c["created_at"])
-        result.append(dict(c, priority=priority))
-
-    result.sort(key=lambda x: x["priority"], reverse=True)
-
-    return render_template("admin.html", complaints=result)
-
-@app.route("/submit", methods=["POST"])
-def submit_complaint():
-    data = request.json
-    created_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-
-    conn = get_db_connection()
-    conn.execute("""
-        INSERT INTO complaints (title, description, category, severity, created_at, status)
-        VALUES (?, ?, ?, ?, ?, ?)
-    """, (
-        data["title"],
-        data["description"],
-        data["category"],
-        data["severity"],
-        created_at,
-        "Pending"
-    ))
-    conn.commit()
-    conn.close()
-
-    return jsonify({"message": "Complaint submitted successfully"})
-
-if __name__ == "__main__":
-    app.run(debug=True)
+if __name__ == '__main__':
+    # Running on Port 5000
+    app.run(port=5000, debug=True)
